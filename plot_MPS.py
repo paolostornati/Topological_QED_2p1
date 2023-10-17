@@ -39,8 +39,8 @@ colors_b = [cmap_b(x) for x in evenly_spaced_interval]
 
 
 # PARAMS (change g and t?)
-Lx = 3
-Ly = 3
+Lx = 8
+Ly = 8
 params = dict(t=0, g=np.sqrt(0.5), lam_penalty=40.0, lam_RK=-1.0)   # g^2=0.5; g^2=1.5
 filling = 0.5
 chi_max = 50
@@ -59,6 +59,8 @@ psi = np.load('psi_g_%.2f_t_%.2f_penalty_%.2f_RKterm_%.2f_L_%.0f_S_%.1f.npy' %(p
 # Get expectation values (without matter fields)
 gf_x = psi.expectation_value('sigmaz', range(Lx*Ly*2)[::2]).reshape(Lx, Ly)
 gf_y = psi.expectation_value('sigmaz', range(Lx*Ly*2)[1::2]).reshape(Lx, Ly)
+print(psi.expectation_value_term([('Pplus', 0),('Pminus', 2),('Pminus', 1),('Pplus', 9)]))
+print(psi.expectation_value_term([('Pminus', 0),('Pplus', 2),('Pplus', 1),('Pminus', 9)]))
 #Nexp = psi.expectation_value('N', range(Lx*Ly*3)[::3]).reshape(Lx, Ly) - when adding matter fields
 Nexp = np.ones(Lx*Ly) #for now
 
@@ -120,10 +122,10 @@ for y in range(1,Ly-1):
         #Rightmost boundary
         gauss_law_exp[Lx-1][y]=gf_x[Lx-2][y]+gf_y[Lx-1][y-1]-q_link_UR-gf_y[Lx-1][y]
 
-print(gf_x)
-print(gf_y)
+#print(gf_x)
+#print(gf_y)
         
-print(gauss_law_exp)
+#print(gauss_law_exp)
 
 
 # In[6]:
@@ -187,4 +189,4 @@ cbar.ax.set_ylabel(r'$\langle s_z \rangle$', fontsize=fs)
 
 plt.tight_layout()
 plt.savefig('{}g_{}Lx_{}Ly_{}S_{}penalty_{}RK.pdf'.format(params['g'],Lx,Ly,S,params['lam_penalty'],params['lam_RK']),bbox_inches='tight')
-
+#plt.show()

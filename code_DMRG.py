@@ -290,8 +290,8 @@ def DMRG(params, Lx, Ly, initial_vector, filling=0.5, S = 2, n_max = 1, chi_max 
 #############################################################33
 
 # PARAMS
-Lx = 3
-Ly = 3
+Lx = 8
+Ly = 8
 params = dict(t=0, g=np.sqrt(0.5), lam_penalty=40.0, lam_RK=-1.)    # g^2=0.5; g^2=1.5
 filling = 0.5
 chi_max = 50
