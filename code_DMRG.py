@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[21]:
+# In[25]:
 
 
 import numpy as np
@@ -15,9 +15,11 @@ from tenpy.tools.params import asConfig
 from tenpy.networks.site import BosonSite, Site, SpinSite
 from tenpy.models import lattice
 from tenpy.networks.site import multi_sites_combine_charges
+import os
+import matplotlib.pyplot as plt
 
 
-# In[2]:
+# In[26]:
 
 
 class plaquette_model(CouplingMPOModel):
@@ -81,17 +83,17 @@ class plaquette_model(CouplingMPOModel):
         self.add_onsite(abs(g)**2/2, 1, 'SzSz') #gauge field direction y
         
         
-        # ADD PLAQUETTE TERMS (a bit tricky due to the unit cell, order is switched because of tenpy but it commutes)
+        # ADD PLAQUETTE TERMS (a bit tricky due to the unit cell)
         for y in range(Ly-1):
             for x in range(Lx-1):          
                 self.add_local_term(-1/2/abs(g)**2, [('sigmap', [x,y,0]),('sigmap', [x+1,y,1]),('sigmam', [x,y+1,0]),('sigmam', [x,y,1])])
                 self.add_local_term(-1/2/abs(g)**2, [('sigmap', [x,y,1]),('sigmap', [x,y+1,0]),('sigmam', [x+1,y,1]),('sigmam', [x,y,0])]) # + h.c.
         
-        # ADD RK TERMS (a bit tricky due to the unit cell, order is switched because of tenpy but it commutes)
+        # ADD RK TERMS
         for y in range(Ly-1):
             for x in range(Lx-1):          
-                self.add_local_term(-1/2/abs(g)**2, [('Pplus', [x,y,0]),('Pplus', [x+1,y,1]),('Pminus', [x,y+1,0]),('Pminus', [x,y,1])])
-                self.add_local_term(-1/2/abs(g)**2, [('Pplus', [x,y,1]),('Pplus', [x,y+1,0]),('Pminus', [x+1,y,1]),('Pminus', [x,y,0])]) # + h.c.
+                self.add_local_term(lambda_RK, [('Pplus', [x,y,0]),('Pplus', [x+1,y,1]),('Pminus', [x,y+1,0]),('Pminus', [x,y,1])])
+                self.add_local_term(lambda_RK, [('Pplus', [x,y,1]),('Pplus', [x,y+1,0]),('Pminus', [x+1,y,1]),('Pminus', [x,y,0])]) # + h.c.
         # ADD ENERGY PENALTY TERMS (Gauss law imposition "by hand")
         
         '''
@@ -110,6 +112,9 @@ class plaquette_model(CouplingMPOModel):
         !! SPIN 1/2: set q_link different from zero if finite BC are considered. !!
         
         '''
+        
+        # Fixed boundary link parameter (see the notes for the configs definitions)
+        q_link_LL=0.5; q_link_UR=-q_link_LL
         
         # Bulk terms
         for x in range(1,Lx-1):
@@ -149,9 +154,7 @@ class plaquette_model(CouplingMPOModel):
         
         # Horizontal boundaries
         # Change: introduce a fictitious link with charge q_link
-        
-        q_link_LL=0.5; q_link_UR=-q_link_LL
-        
+                
         for x in range(1,Lx-1):
             # Lower boundary
             self.add_local_term(lam_penalty,[('sigmaz',[x,0,0]),('sigmaz',[x,0,0])])
@@ -241,7 +244,7 @@ class plaquette_model(CouplingMPOModel):
         #self.add_local_term(100, [('Sz', [0,0,2])])
 
 
-# In[3]:
+# In[27]:
 
 
 class lgt_hoti(plaquette_model, CouplingMPOModel):
@@ -253,7 +256,7 @@ class lgt_hoti(plaquette_model, CouplingMPOModel):
         CouplingMPOModel.__init__(self, model_params)
 
 
-# In[4]:
+# In[28]:
 
 
 def DMRG(params, Lx, Ly, initial_vector, filling=0.5, S = 2, n_max = 1, chi_max = 30, bc_MPS = 'finite', mixer=True, conserve='N', orthogonal=[]):
@@ -284,15 +287,84 @@ def DMRG(params, Lx, Ly, initial_vector, filling=0.5, S = 2, n_max = 1, chi_max 
     return info, psi
 
 
-# In[5]:
+# In[29]:
 
 
-#############################################################33
+'''
+
+Useful functions to extract observables: total flippability, sublattice flippabilities, total susceptibility (check definition), checkerboard pattern
+
+'''
+
+#for i in range(len(initial_MPS)):
+#    print(i,M.lat.mps2lat_idx(i))
+
+# Total flippability of the lattice
+# Return the number of plaquette just as a check, it can be removed
+def total_flippability(psi,M,Lx,Ly):
+    
+    total_flip=0.0
+    
+    # Flippability for all the plaquettes
+    for x in range(Lx-1):
+        for y in range(Ly-1):
+            #site_parity=(-1)**(x+y)
+            plaq_flipp=psi.expectation_value_term([('Pplus', M.lat.lat2mps_idx([x,y,0])),('Pplus', M.lat.lat2mps_idx([x+1,y,1])),('Pminus', M.lat.lat2mps_idx([x,y+1,0])),('Pminus', M.lat.lat2mps_idx([x,y,1]))])
+            # Add to total flippability weighted with parity
+            # total_flip+=site_parity*plaq_flipp
+            total_flip+=plaq_flipp
+    
+    return total_flip
+
+# Total susceptibility of the lattice
+# Return the sum of the squares of flippabilities computed in each sublattice: Ma**2+Mb**2=chi
+
+def total_susceptibility(psi,M,Lx,Ly):
+    
+    Ma=0.0; Mb=0.0
+    
+    # Define total flippability in each sublattice
+    for x in range(Lx-1):
+        for y in range(Ly-1):
+            site_parity=(-1)**(x+y)
+            if site_parity==1:
+                # A sublattice
+                Ma+=psi.expectation_value_term([('Pplus', M.lat.lat2mps_idx([x,y,0])),('Pplus', M.lat.lat2mps_idx([x+1,y,1])),('Pminus', M.lat.lat2mps_idx([x,y+1,0])),('Pminus', M.lat.lat2mps_idx([x,y,1]))])
+            else:
+                Mb+=psi.expectation_value_term([('Pplus', M.lat.lat2mps_idx([x,y,0])),('Pplus', M.lat.lat2mps_idx([x+1,y,1])),('Pminus', M.lat.lat2mps_idx([x,y+1,0])),('Pminus', M.lat.lat2mps_idx([x,y,1]))])
+    
+    # Define total susceptibility
+    total_chi=Ma**2+Mb**2
+    return Ma, Mb, total_chi
+    
+# Test function: returns the checkerboard pattern on our lattice
+def checkerboard(Lx,Ly):
+    
+    sublat_A=[]; sublat_B=[]
+    
+    for x in range(Lx-1):
+        for y in range(Ly-1):
+            parity=(-1)**(x+y)
+            if parity==1:
+                sublat_A.append([x,y])
+            else:
+                sublat_B.append([x,y])
+    
+    return sublat_A,sublat_B
+
+
+# In[36]:
+
+
+#############################################################
+# Single DMRG run
+#############################################################
+
 
 # PARAMS
-Lx = 8
-Ly = 8
-params = dict(t=0, g=np.sqrt(0.5), lam_penalty=40.0, lam_RK=-1.)    # g^2=0.5; g^2=1.5
+Lx = 4
+Ly = 4
+params = dict(t=0, g=np.sqrt(0.5), lam_penalty=40.0, lam_RK=0.0)    # g^2=0.5; g^2=1.5
 filling = 0.5
 chi_max = 50
 n_max = 1
@@ -353,4 +425,90 @@ print(initial_MPS)
 info, psi = DMRG(params, Lx, Ly, initial_MPS, filling=filling, S=S, n_max = 1, chi_max=chi_max, bc_MPS = 'finite')
 np.save('psi_g_%.2f_t_%.2f_penalty_%.2f_RKterm_%.2f_L_%.0f_S_%.1f.npy' %(params['g'], params['t'], params['lam_penalty'], params['lam_RK'], Lx*Ly, S), [psi])
 #print(info)
+
+
+# In[19]:
+
+
+# MAIN (REPRODUCE FIG. 6 OF PAOLO'S PRD)
+
+# Directory for the files
+main_directory="DATA_PSI"
+if not os.path.exists(main_directory):
+	os.makedirs(main_directory)
+    
+# PARAMS
+Lx = 5
+Ly = 5
+filling = 0.5
+n_max = 1
+S = 0.5
+bc_MPS = 'finite'
+conserve='N'
+
+chi_max_values=[50]
+lambda_values=np.linspace(-1.0,1.0,num=20)
+Oflip_values=[]; chi_values=[]; Ma_list=[]; Mb_list=[]
+
+for chi_value in chi_max_values:
+    
+    for lamRK in lambda_values:
+        
+        chi_max = chi_value
+        
+        print("--------------------------------------")
+        print("lambda_RK={}".format(lamRK))
+        print("--------------------------------------")
+
+        params = dict(t=0, g=np.sqrt(0.5), lam_penalty=40.0, lam_RK=lamRK)    # g^2=0.5 means J=1 in the RK model (see our notes)
+
+        # Perform the DMRG routine
+        M = lgt_hoti(dict(S=S, n_max=n_max, filling=filling, bc_MPS=bc_MPS, Lx=Lx, Ly=Ly, t=params['t'], g=params['g'], lam_penalty=params['lam_penalty'], lam_RK=params['lam_RK'], conserve_boson=conserve, conserve_spin=None, verbose=0))
+
+        # Construct snake vector for initial MPS 
+        # This will change when adding matter fields to Lx*Ly*3.
+
+        len_initialMPS = 2*Lx*Ly
+
+        initial_MPS = np.zeros(len_initialMPS,dtype='int')
+
+        if S==0.5:
+            initial_MPS=np.tile([0,1],int(len_initialMPS/2))
+            # Random shuffled initial MPS
+            np.random.shuffle(initial_MPS)
+        else:
+            initial_MPS=np.random.randint(2*S+1, size=len_initialMPS)
+
+        info, psi = DMRG(params, Lx, Ly, initial_MPS, filling=filling, S=S, n_max = 1, chi_max=chi_max, bc_MPS = 'finite')
+        psi_filename=main_directory+'/psi_g_%.2f_t_%.2f_penalty_%.2f_RKterm_%.2f_L_%.0f_S_%.1f.npy' %(params['g'], params['t'], params['lam_penalty'], params['lam_RK'], Lx*Ly, S)
+        np.save(psi_filename, [psi])
+
+        # Compute total flippability (whole lattice)
+
+        Oflip=total_flippability(psi,M,Lx,Ly)
+        Oflip_values.append(Oflip)
+
+        # Compute susceptibility (whole lattice)
+        Ma,Mb,chi=total_susceptibility(psi,M,Lx,Ly)
+        chi_values.append(chi)
+        Ma_list.append(Ma); Mb_list.append(Mb)
+
+
+# In[24]:
+
+
+plt.scatter(lambda_values,Oflip_values)
+print(Oflip_values)
+
+
+# In[23]:
+
+
+plt.scatter(lambda_values,np.asarray(chi_values)/Lx/Ly)
+
+
+# In[ ]:
+
+
+
 
