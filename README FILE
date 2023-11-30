@@ -1,0 +1,33 @@
+--------------
+README FILE
+--------------
+
+Jupyter uploaded & updated:
+	
+	1. code_DMRG.ipynb: includes functions specifying boundary conditions & observables, and blocks performing single DMRG run, multiple DMRG runs in lambda_RK and compute observables (flippabilities, susceptibilities) for different system sizes.
+	
+	2. plot_MPS.ipynb: computation of the Gauss law for various boundary conditions fixed.
+
+Python codes (to be run in the BSC):
+	
+	1. BC_observables_functions.py: file with the functions specifying boundary conditions & observables. It must be in the same directory of all the Jupyter notebooks and of the single run Python code.
+
+	2. DMRG_run.py: codes performing a single DMRG run for a given volume, boundary condition and RK coupling. To perform a single DMRG run, type in the CMD:
+
+		python DMRG_run.py Lx Ly bc_int lam_RK
+
+	where:
+
+		Lx = integer specifying the x-size
+		Ly = integer specifying the y-size
+		bc_int = integer specifying the boundary conditions, according to our nomenclature:
+				 (0 = 'staggered')
+				 (1 = 'walls_opposite')
+				 (2 = 'walls_equal')
+				 (3 = 'all_edges_equal')
+		lam_RK = float specifying the RK parameter (lambda)
+
+	The run is performed at fixed penalty strength (=40.0) and value of J=-1 (corresponding to g**2=0.5).
+
+
+Uploaded images show the various boundary conditions alongside their nomenclature.
