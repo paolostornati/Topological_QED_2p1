@@ -29,6 +29,7 @@ Python codes (to be run in the BSC):
 		lam_RK = float specifying the RK parameter (lambda)
 
 	The run is performed at fixed penalty strength (=40.0) and value of J=-1 (corresponding to g**2=0.5).
-
+	
+	3. plotting_lattices.py: codes performing automatically the PDF with the color plots of the lattices and observables (without passing from Jupyter Notebooks).
 
 Uploaded images show the various boundary conditions alongside their nomenclature.
