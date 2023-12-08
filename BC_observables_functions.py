@@ -141,6 +141,7 @@ Useful functions to extract observables:
 - sublattice flippabilities
 - total "susceptibility" (check definition)
 - checkerboard pattern
+- lat2snake_indices
 
 '''
 
@@ -200,3 +201,9 @@ def checkerboard(Lx,Ly):
                 sublat_B.append([x,y])
     
     return sublat_A,sublat_B
+
+def lat2snake_indices(x,y,mu,Lx):
+    if mu==0:
+        return 2*Lx*x+2*y
+    if mu==1:
+        return 2*Lx*x+2*y+1
