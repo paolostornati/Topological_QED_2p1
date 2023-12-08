@@ -6,7 +6,8 @@ Jupyter uploaded & updated:
 	
 	1. code_DMRG.ipynb: includes functions specifying boundary conditions & observables, and blocks performing single DMRG run, multiple DMRG runs in lambda_RK and compute observables (flippabilities, susceptibilities) for different system sizes.
 	
-	2. plot_MPS.ipynb: computation of the Gauss law for various boundary conditions fixed.
+	2. plot_MPS.ipynb: computation of the Gauss law and local flippabilities for various boundary conditions. 
+			   color plots of external boundary links added.
 
 Python codes (to be run in the BSC):
 	
